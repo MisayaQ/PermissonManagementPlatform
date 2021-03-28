@@ -1,14 +1,8 @@
-package com.debug.pmp.server.shiro;/**
- * Created by Administrator on 2019/7/30.
- */
+package com.debug.pmp.server.shiro;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.debug.pmp.model.entity.SysMenuEntity;
 import com.debug.pmp.model.entity.SysUserEntity;
 import com.debug.pmp.model.mapper.SysUserDao;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.AuthenticationToken;
@@ -19,7 +13,6 @@ import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.authc.credential.CredentialsMatcher;
 import org.apache.shiro.authc.credential.HashedCredentialsMatcher;
 import org.apache.shiro.authz.AuthorizationInfo;
-import org.apache.shiro.authz.SimpleAuthorizationInfo;
 import org.apache.shiro.realm.AuthorizingRealm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.util.ByteSource;
@@ -28,10 +21,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * shiro用于认证用户~授权
@@ -67,6 +56,7 @@ public class UserRealm extends AuthorizingRealm {
         UsernamePasswordToken token = (UsernamePasswordToken) authenticationToken;
         final String userName=token.getUsername();
         final String password=String.valueOf(token.getPassword());
+        log.info("用户名: {} 密码：{}",userName,password);
         SysUserEntity entity=sysUserDao.selectOne(new QueryWrapper<SysUserEntity>().eq("username",userName));
         if (entity==null){
             throw new UnknownAccountException("账户不存在!");
@@ -75,7 +65,24 @@ public class UserRealm extends AuthorizingRealm {
         if (0 == entity.getStatus()){
             throw new DisabledAccountException("账户已被禁用,请联系管理员!");
         }
-        return null;
+        //第一种 : 明文匹配
+        //账户名密码不匹配
+        /*if (!entity.getPassword().equals(password)){
+            throw new IncorrectCredentialsException("账户密码不匹配!");
+        }
+        SimpleAuthenticationInfo info=new SimpleAuthenticationInfo(entity,password,getName());*/
+
+        //第三种验证逻辑
+/*        String realPassword=ShiroUtil.sha256(password,entity.getSalt());
+        if (StringUtils.isBlank(realPassword) || !realPassword.equals(entity.getPassword())){
+            throw new IncorrectCredentialsException("账户密码不匹配!");
+        }
+        SimpleAuthenticationInfo info=new SimpleAuthenticationInfo(entity,password,getName());*/
+
+
+        SimpleAuthenticationInfo info = new SimpleAuthenticationInfo(entity, entity.getPassword(), ByteSource.Util.bytes(entity.getSalt()), getName());
+
+        return info;
     }
 
     /**
